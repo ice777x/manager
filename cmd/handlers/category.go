@@ -1,0 +1,193 @@
+package handlers
+
+import (
+	"fmt"
+	"reflect"
+	"strconv"
+	"strings"
+
+	"github.com/charmbracelet/log"
+	"github.com/gofiber/fiber/v2"
+	"github.com/ice777x/pmanager/cmd/database"
+	"github.com/ice777x/pmanager/cmd/types"
+)
+
+func CategoryItem(c *fiber.Ctx) error {
+	db, ok := c.Locals("db").(*database.DB)
+
+	if !ok {
+		log.Fatal("Problem in database connection!")
+	}
+
+	qs := c.Queries()
+
+	var limit uint64 = 10
+	var skip uint64 = 0
+	var err error
+
+	id := qs["id"]
+
+	if limitStr := qs["limit"]; limitStr != "" {
+		limit, err = strconv.ParseUint(limitStr, 10, 64)
+
+		if err != nil {
+
+			return c.JSON(fiber.Map{
+				"status":  400,
+				"message": "Invalid limit parameter",
+			})
+		}
+	}
+
+	if skipStr := qs["skip"]; skipStr != "" {
+		skip, err = strconv.ParseUint(skipStr, 10, 64)
+
+		if err != nil {
+
+			return c.JSON(fiber.Map{
+				"status":  400,
+				"message": "Invalid skip parameter",
+			})
+		}
+	}
+
+	if id == "" {
+		categories, err := db.GetAllCategories(limit, skip)
+		if err != nil {
+			return c.JSON(fiber.Map{
+				"status":  400,
+				"message": "Failed to retrieve categories",
+			})
+		}
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"status": 200,
+			"result": categories,
+		})
+	}
+
+	categories, err := db.GetCategories(strings.Split(strings.Trim(id, ","), ","), limit, skip)
+	if err != nil {
+		return c.JSON(fiber.Map{
+			"status":  400,
+			"message": "No data for query",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": 200,
+		"result": categories,
+	})
+}
+
+func CategoryCreate(c *fiber.Ctx) error {
+
+	db, ok := c.Locals("db").(*database.DB)
+
+	if !ok {
+		log.Fatal("Problem in database connection!")
+	}
+
+	var req []types.Category
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  400,
+			"message": err.Error(),
+		})
+	}
+
+	categories := make([]interface{}, len(req))
+	for i, category := range req {
+		categories[i] = category
+	}
+
+	i, err := db.InsertMany("categories", categories)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  500,
+			"message": "Failed to insert categories",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": 200,
+		"result": i,
+	})
+
+}
+
+func CategoryUpdate(c *fiber.Ctx) error {
+
+	db, ok := c.Locals("db").(*database.DB)
+
+	if !ok {
+		log.Fatal("Problem in database connection!")
+	}
+
+	var req types.Category
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  400,
+			"message": err.Error(),
+		})
+	}
+	v := reflect.ValueOf(req)
+	t := reflect.TypeOf(req)
+	addValues := []string{}
+	var idStr any
+	for i := 0; i < v.NumField(); i++ {
+		if v.Field(i).IsZero() {
+			if t.Field(i).Tag.Get("json") == "id" {
+				idStr = v.Field(i).Interface()
+			}
+			addValues = append(addValues, fmt.Sprintf("%s = %v", t.Field(i).Tag.Get("json"), v.Field(i).Interface()))
+		}
+	}
+	var pk int
+	query := fmt.Sprintf("UPDATE categories SET %s WHERE id = %s", strings.Join(addValues, ","), idStr)
+	err := db.Conn.QueryRow(query).Scan(&pk)
+
+	if err != nil {
+		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  500,
+			"message": err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": 200,
+		"result": pk,
+	})
+}
+
+func CategoryDelete(c *fiber.Ctx) error {
+
+	db, ok := c.Locals("db").(*database.DB)
+
+	if !ok {
+		log.Fatal("Problem in database connection!")
+	}
+
+	idStr := c.Params("ids")
+	id := strings.Split(strings.Trim(idStr, ","), ",")
+	if len(id) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  400,
+			"message": "id parameter not found",
+		})
+	}
+
+	log.Infof("DELETE ITEM FROM %s", id)
+
+	res, err := db.DeleteMany("categories", id)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status":  500,
+			"message": "Failed to delete categories",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": 200,
+		"result": res,
+	})
+}

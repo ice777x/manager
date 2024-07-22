@@ -80,6 +80,28 @@ func (db *DB) InsertMany(tableName string, items []interface{}) (int, error) {
 	return int(lId), err
 }
 
+func (db *DB) UpdateOne(tableName string, item interface{}) (int, error) {
+	v := reflect.ValueOf(item)
+	t := reflect.TypeOf(item)
+	addValues := []string{}
+
+	var idStr any
+	for i := 0; i < v.NumField(); i++ {
+		if !v.Field(i).IsZero() {
+			if t.Field(i).Tag.Get("json") == "id" {
+				idStr = v.Field(i).Interface()
+				continue
+			}
+			addValues = append(addValues, fmt.Sprintf("%s = %v", t.Field(i).Tag.Get("json"), v.Field(i).Interface()))
+		}
+	}
+	var pk int
+	query := fmt.Sprintf("UPDATE %s SET %s WHERE id = %v RETURNING id", tableName, strings.Join(addValues, ","), idStr)
+	fmt.Println(query)
+	err := db.Conn.QueryRow(query).Scan(&pk)
+	return pk, err
+}
+
 func (db *DB) DeleteOne(tableName string, id string) (int, error) {
 	query := fmt.Sprintf("DELETE FROM %s where id = %s RETURNING id", tableName, id)
 	var dId int

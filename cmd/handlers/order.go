@@ -132,22 +132,8 @@ func OrderUpdate(c *fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
-	v := reflect.ValueOf(req)
-	t := reflect.TypeOf(req)
-	addValues := []string{}
-	var idStr any
-	for i := 0; i < v.NumField(); i++ {
-		if !v.Field(i).IsZero() {
-			if t.Field(i).Tag.Get("json") == "id" {
-				idStr = v.Field(i).Interface()
-				continue
-			}
-			addValues = append(addValues, fmt.Sprintf("%s = %v", t.Field(i).Tag.Get("json"), v.Field(i).Interface()))
-		}
-	}
 
-	query := fmt.Sprintf("UPDATE orders SET %s WHERE id = %v", strings.Join(addValues, ","), idStr)
-	res, err := db.Conn.Exec(query)
+	pk, err := db.UpdateOne("orders", req)
 	if err != nil {
 		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,
@@ -157,7 +143,7 @@ func OrderUpdate(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": 200,
-		"result": res,
+		"result": pk,
 	})
 }
 

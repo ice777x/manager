@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"fmt"
-	"reflect"
+	_ "fmt"
+	_ "reflect"
 	"strconv"
 	"strings"
 
@@ -128,27 +128,11 @@ func AddressUpdate(c *fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
-	v := reflect.ValueOf(req)
-	t := reflect.TypeOf(req)
-	addValues := []string{}
-
-	var idStr any
-	for i := 0; i < v.NumField(); i++ {
-		if v.Field(i).IsZero() {
-			if t.Field(i).Tag.Get("json") == "id" {
-				idStr = v.Field(i).Interface()
-			}
-			addValues = append(addValues, fmt.Sprintf("%s = %v", t.Field(i).Tag.Get("json"), v.Field(i).Interface()))
-		}
-	}
-	var pk int
-	query := fmt.Sprintf("UPDATE addresses SET %s WHERE id = %s", strings.Join(addValues, ","), idStr)
-	err := db.Conn.QueryRow(query).Scan(&pk)
-
+	pk, err := db.UpdateOne("addresses", req)
 	if err != nil {
 		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,
-			"message": err.Error(),
+			"message": "",
 		})
 	}
 

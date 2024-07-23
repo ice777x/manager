@@ -3,7 +3,7 @@ package database
 import (
 	"fmt"
 	"github.com/charmbracelet/log"
-	"github.com/ice777x/pmanager/cmd/types"
+	"github.com/ice777x/manager/cmd/types"
 	"strings"
 )
 

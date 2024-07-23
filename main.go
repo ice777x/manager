@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"github.com/charmbracelet/log"
 	"github.com/gofiber/fiber/v2"
-	"github.com/ice777x/pmanager/cmd/database"
-	"github.com/ice777x/pmanager/cmd/handlers"
-	"github.com/ice777x/pmanager/cmd/middleware"
-	"github.com/ice777x/pmanager/cmd/utils"
+	"github.com/ice777x/manager/cmd/database"
+	"github.com/ice777x/manager/cmd/handlers"
+	"github.com/ice777x/manager/cmd/middleware"
+	"github.com/ice777x/manager/cmd/utils"
 	_ "github.com/lib/pq"
 )
 
@@ -28,6 +28,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	db := &database.DB{Conn: con}
 	initialize(db.Conn)
 
@@ -44,27 +45,27 @@ func Router(app *fiber.App) {
 
 		api.Get("/product", handlers.ProductItem)
 		api.Post("/product", handlers.ProductCreate)
-		api.Put("/product", handlers.ProductUpdate)
+		api.Put("/product/:id", handlers.ProductUpdate)
 		api.Delete("/product", handlers.ProductDelete)
 
 		api.Get("/order", handlers.OrderItem)
 		api.Post("/order", handlers.OrderCreate)
-		api.Put("/order", handlers.OrderUpdate)
+		api.Put("/order/:id", handlers.OrderUpdate)
 		api.Delete("/order", handlers.OrderDelete)
 
 		api.Get("/customer", handlers.CustomerItem)
 		api.Post("/customer", handlers.CustomerCreate)
-		api.Put("/customer", handlers.CustomerUpdate)
+		api.Put("/customer/:id", handlers.CustomerUpdate)
 		api.Delete("/customer", handlers.CustomerDelete)
 
 		api.Get("/address", handlers.AddressItem)
 		api.Post("/address", handlers.AddressCreate)
-		api.Put("/address", handlers.AddressUpdate)
+		api.Put("/address/:id", handlers.AddressUpdate)
 		api.Delete("/address", handlers.AddressDelete)
 
 		api.Get("/category", handlers.CategoryItem)
 		api.Post("/category", handlers.CategoryCreate)
-		api.Put("/category", handlers.CategoryUpdate)
+		api.Put("/category/:id", handlers.CategoryUpdate)
 		api.Delete("/category", handlers.CategoryDelete)
 	}, "api")
 

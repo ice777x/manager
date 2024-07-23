@@ -2,15 +2,14 @@ package handlers
 
 import (
 	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/gofiber/fiber/v2"
-	"github.com/ice777x/pmanager/cmd/database"
-	"github.com/ice777x/pmanager/cmd/types"
+	"github.com/ice777x/manager/cmd/database"
+	"github.com/ice777x/manager/cmd/types"
 )
 
 func OrderItem(c *fiber.Ctx) error {
@@ -125,15 +124,24 @@ func OrderUpdate(c *fiber.Ctx) error {
 		log.Fatal("Problem in database connection!")
 	}
 
+	idStr := c.Params("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  400,
+			"message": "Failed to parse id.",
+		})
+	}
+
 	var req types.Order
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  400,
-			"message": err.Error(),
+			"message": "Failed to parse request body as JSON. Please check your input and try again.",
 		})
 	}
 
-	pk, err := db.UpdateOne("orders", req)
+	pk, err := db.UpdateOne("orders", id, req)
 	if err != nil {
 		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,
@@ -166,7 +174,8 @@ func OrderDelete(c *fiber.Ctx) error {
 
 	log.Infof("DELETE ITEM FROM %s", id)
 
-	res, err := db.DeleteMany("orders", id)
+	res, err := db.DeleteMany("orders", "id", id)
+
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,

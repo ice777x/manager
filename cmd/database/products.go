@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/log"
-	"github.com/ice777x/pmanager/cmd/types"
+	"github.com/ice777x/manager/cmd/types"
 )
 
 func (db *DB) GetProduct(productIds []string, limit uint64, offset uint64) ([]types.Product, error) {

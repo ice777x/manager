@@ -1,16 +1,14 @@
 package handlers
 
 import (
-	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/gofiber/fiber/v2"
-	"github.com/ice777x/pmanager/cmd/database"
-	"github.com/ice777x/pmanager/cmd/types"
+	"github.com/ice777x/manager/cmd/database"
+	"github.com/ice777x/manager/cmd/types"
 )
 
 func CustomerItem(c *fiber.Ctx) error {
@@ -122,6 +120,15 @@ func CustomerUpdate(c *fiber.Ctx) error {
 		log.Fatal("Problem in database connection!")
 	}
 
+	idStr := c.Params("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  400,
+			"message": "Failed to parse id.",
+		})
+	}
+
 	var req types.Customer
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -129,11 +136,11 @@ func CustomerUpdate(c *fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
-	pk, err := db.UpdateOne("customers", req)
+	pk, err := db.UpdateOne("customers", id, req)
 	if err != nil {
 		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,
-			"message": err.Error(),
+			"message": "Failed to parse request body as JSON. Please check your input and try again.",
 		})
 	}
 
@@ -151,7 +158,7 @@ func CustomerDelete(c *fiber.Ctx) error {
 		log.Fatal("Problem in database connection!")
 	}
 
-	idStr := c.Params("ids")
+	idStr := c.Params("id")
 	id := strings.Split(strings.Trim(idStr, ","), ",")
 	if len(id) == 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -160,15 +167,14 @@ func CustomerDelete(c *fiber.Ctx) error {
 		})
 	}
 
-	log.Infof("DELETE ITEM FROM %s", id)
-
-	res, err := db.DeleteMany("customers", id)
+	res, err := db.DeleteMany("customers", "id", id)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,
 			"message": "Failed to delete customers",
 		})
 	}
+	log.Infof("Delete item from customers %d", res)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": 200,

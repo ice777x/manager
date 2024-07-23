@@ -2,15 +2,14 @@ package handlers
 
 import (
 	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/gofiber/fiber/v2"
-	"github.com/ice777x/pmanager/cmd/database"
-	"github.com/ice777x/pmanager/cmd/types"
+	"github.com/ice777x/manager/cmd/database"
+	"github.com/ice777x/manager/cmd/types"
 )
 
 func ProductItem(c *fiber.Ctx) error {
@@ -101,8 +100,9 @@ func ProductCreate(c *fiber.Ctx) error {
 		products[i] = product
 	}
 
-	i, err := db.InsertMany("products", products)
+	pk, err := db.InsertMany("products", products)
 	if err != nil {
+		fmt.Println(err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,
 			"message": "Failed to insert products",
@@ -111,7 +111,7 @@ func ProductCreate(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": 200,
-		"result": i,
+		"result": pk,
 	})
 
 }
@@ -124,6 +124,15 @@ func ProductUpdate(c *fiber.Ctx) error {
 		log.Fatal("Problem in database connection!")
 	}
 
+	idStr := c.Params("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  400,
+			"message": "Failed to parse id.",
+		})
+	}
+
 	var req types.Product
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -132,12 +141,12 @@ func ProductUpdate(c *fiber.Ctx) error {
 		})
 	}
 
-	pk, err := db.UpdateOne("products", req)
+	pk, err := db.UpdateOne("products", id, req)
 
 	if err != nil {
 		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,
-			"message": err.Error(),
+			"message": "Failed to parse request body as JSON. Please check your input and try again.",
 		})
 	}
 
@@ -155,7 +164,7 @@ func ProductDelete(c *fiber.Ctx) error {
 		log.Fatal("Problem in database connection!")
 	}
 
-	idStr := c.Params("ids")
+	idStr := c.Query("id")
 	id := strings.Split(strings.Trim(idStr, ","), ",")
 
 	if len(id) == 0 {
@@ -165,15 +174,15 @@ func ProductDelete(c *fiber.Ctx) error {
 		})
 	}
 
-	log.Infof("DELETE ITEM FROM %s", id)
-
-	res, err := db.DeleteMany("products", id)
+	res, err := db.DeleteMany("products", "id", id)
 	if err != nil {
+		fmt.Println(err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,
 			"message": "Failed to delete products",
 		})
 	}
+	log.Infof("Delete item from product %s", id)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": 200,

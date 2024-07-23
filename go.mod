@@ -1,4 +1,4 @@
-module github.com/ice777x/pmanager
+module github.com/ice777x/manager
 
 go 1.22.4
 

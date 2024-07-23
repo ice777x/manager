@@ -71,33 +71,28 @@ func (db *DB) InsertMany(tableName string, items []interface{}) (int, error) {
 			query += ","
 		}
 	}
-	result, err := db.Conn.Exec(query, values...)
+	var pk int
+	query += " RETURNING id"
+	err := db.Conn.QueryRow(query, values...).Scan(&pk)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	lId, _ := result.LastInsertId()
-	return int(lId), err
+	return pk, err
 }
 
-func (db *DB) UpdateOne(tableName string, item interface{}) (int, error) {
+func (db *DB) UpdateOne(tableName string, id int, item interface{}) (int, error) {
 	v := reflect.ValueOf(item)
 	t := reflect.TypeOf(item)
 	addValues := []string{}
 
-	var idStr any
 	for i := 0; i < v.NumField(); i++ {
 		if !v.Field(i).IsZero() {
-			if t.Field(i).Tag.Get("json") == "id" {
-				idStr = v.Field(i).Interface()
-				continue
-			}
 			addValues = append(addValues, fmt.Sprintf("%s = %v", t.Field(i).Tag.Get("json"), v.Field(i).Interface()))
 		}
 	}
+
 	var pk int
-	query := fmt.Sprintf("UPDATE %s SET %s WHERE id = %v RETURNING id", tableName, strings.Join(addValues, ","), idStr)
-	fmt.Println(query)
+	query := fmt.Sprintf("UPDATE %s SET %s WHERE id = %d RETURNING id", tableName, strings.Join(addValues, ","), id)
 	err := db.Conn.QueryRow(query).Scan(&pk)
 	return pk, err
 }
@@ -109,12 +104,14 @@ func (db *DB) DeleteOne(tableName string, id string) (int, error) {
 	return dId, err
 }
 
-func (db *DB) DeleteMany(tableName string, ids []string) ([]int, error) {
-	query := fmt.Sprintf("DELETE FROM %s where id IN (%s) RETURNING id", tableName, strings.Join(ids, ","))
+func (db *DB) DeleteMany(tableName string, where string, ids []string) ([]int, error) {
+	query := fmt.Sprintf("DELETE FROM %s where %s IN (%s) RETURNING id", tableName, where, strings.Join(ids, ","))
 	rows, err := db.Conn.Query(query)
+
 	if err != nil {
 		return []int{}, err
 	}
+
 	var pks []int
 	defer rows.Close()
 	for rows.Next() {
@@ -135,7 +132,7 @@ func CreateProducts(db *sql.DB) {
 		stock INT NOT NULL,
 		price NUMERIC(6,2) NOT NULL,
 		image VARCHAR(255) NOT NULL,
-		category_id NUMERIC NOT NULL,
+		category_id INT NOT NULL,
 		updated_at timestamp DEFAULT NOW(),
 		created_at timestamp DEFAULT NOW()
 	)`
@@ -167,8 +164,8 @@ func CreateOrders(db *sql.DB) {
 	product_id INT NOT NULL,
 	updated_at TIMESTAMPTZ DEFAULT NOW(),
 	created_at TIMESTAMPTZ DEFAULT NOW(),
-	FOREIGN KEY (customer_id) REFERENCES customers(id),
-	FOREIGN KEY (product_id) REFERENCES products(id)
+	FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+	FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
 	)`
 	_, err := db.Exec(query)
 	if err != nil {
@@ -184,7 +181,7 @@ func CreateAddress(db *sql.DB) {
 		state VARCHAR(255) NOT NULL,
 		zip_code VARCHAR(255) NOT NULL,
 		customer_id INT NOT NULL,
-		FOREIGN KEY (customer_id) REFERENCES customers(id) 
+		FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
 	)`
 
 	_, err := db.Exec(query)
@@ -198,7 +195,7 @@ func CreateCategories(db *sql.DB) {
 		id SERIAL PRIMARY KEY,
 		name VARCHAR(255) NOT NULL,
 		product_id INT NOT NULL,
-		FOREIGN KEY (product_id) REFERENCES products(id) 
+		FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
 	)`
 
 	_, err := db.Exec(query)

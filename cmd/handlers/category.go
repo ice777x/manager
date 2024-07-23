@@ -1,15 +1,13 @@
 package handlers
 
 import (
-	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/log"
 	"github.com/gofiber/fiber/v2"
-	"github.com/ice777x/pmanager/cmd/database"
-	"github.com/ice777x/pmanager/cmd/types"
+	"github.com/ice777x/manager/cmd/database"
+	"github.com/ice777x/manager/cmd/types"
 )
 
 func CategoryItem(c *fiber.Ctx) error {
@@ -122,15 +120,23 @@ func CategoryUpdate(c *fiber.Ctx) error {
 	if !ok {
 		log.Fatal("Problem in database connection!")
 	}
-
+	idStr := c.Params("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  400,
+			"message": "Failed to parse id.",
+		})
+	}
 	var req types.Category
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  400,
-			"message": err.Error(),
+			"message": "Failed to parse request body as JSON. Please check your input and try again.",
 		})
 	}
-	pk, err := db.UpdateOne("categories", req)
+
+	pk, err := db.UpdateOne("categories", id, req)
 	if err != nil {
 		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,
@@ -152,7 +158,7 @@ func CategoryDelete(c *fiber.Ctx) error {
 		log.Fatal("Problem in database connection!")
 	}
 
-	idStr := c.Params("ids")
+	idStr := c.Params("id")
 	id := strings.Split(strings.Trim(idStr, ","), ",")
 	if len(id) == 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -163,7 +169,7 @@ func CategoryDelete(c *fiber.Ctx) error {
 
 	log.Infof("DELETE ITEM FROM %s", id)
 
-	res, err := db.DeleteMany("categories", id)
+	res, err := db.DeleteMany("categories", "id", id)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,

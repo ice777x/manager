@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/ice777x/pmanager/cmd/database"
+	"github.com/ice777x/manager/cmd/database"
 )
 
 func DbWare(db *database.DB) fiber.Handler {

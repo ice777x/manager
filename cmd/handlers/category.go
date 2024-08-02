@@ -21,15 +21,15 @@ func CategoryItem(c *fiber.Ctx) error {
 
 	var limit uint64 = 10
 	var skip uint64 = 0
+	var allowProduct = false
 	var err error
 
 	id := qs["id"]
 
 	if limitStr := qs["limit"]; limitStr != "" {
 		limit, err = strconv.ParseUint(limitStr, 10, 64)
-
 		if err != nil {
-
+			log.Errorf("Category Handler %v", err)
 			return c.JSON(fiber.Map{
 				"status":  400,
 				"message": "Invalid limit parameter",
@@ -39,9 +39,8 @@ func CategoryItem(c *fiber.Ctx) error {
 
 	if skipStr := qs["skip"]; skipStr != "" {
 		skip, err = strconv.ParseUint(skipStr, 10, 64)
-
 		if err != nil {
-
+			log.Errorf("Category Handler: %v", err)
 			return c.JSON(fiber.Map{
 				"status":  400,
 				"message": "Invalid skip parameter",
@@ -52,6 +51,7 @@ func CategoryItem(c *fiber.Ctx) error {
 	if id == "" {
 		categories, err := db.GetAllCategories(limit, skip)
 		if err != nil {
+			log.Errorf("Category Handler: %v", err)
 			return c.JSON(fiber.Map{
 				"status":  400,
 				"message": "Failed to retrieve categories",
@@ -63,8 +63,21 @@ func CategoryItem(c *fiber.Ctx) error {
 		})
 	}
 
-	categories, err := db.GetCategories(strings.Split(strings.Trim(id, ","), ","), limit, skip)
+	if allowProductStr := qs["product"]; allowProductStr != "" {
+		allowProduct, err = strconv.ParseBool(allowProductStr)
+
+		if err != nil {
+			log.Errorf("Category Handler: %v", err)
+			return c.JSON(fiber.Map{
+				"status":  400,
+				"message": "Invalid skip parameter",
+			})
+		}
+	}
+
+	categories, err := db.GetCategories(strings.Split(strings.Trim(id, ","), ","), limit, skip, allowProduct)
 	if err != nil {
+		log.Errorf("Category Handler: %v", err)
 		return c.JSON(fiber.Map{
 			"status":  400,
 			"message": "No data for query",
@@ -72,8 +85,8 @@ func CategoryItem(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": 200,
-		"result": categories,
+		"status":  200,
+		"results": categories,
 	})
 }
 
@@ -87,9 +100,10 @@ func CategoryCreate(c *fiber.Ctx) error {
 
 	var req []types.Category
 	if err := c.BodyParser(&req); err != nil {
+		log.Errorf("Category Create Handler: %v", err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  400,
-			"message": err.Error(),
+			"message": "Failed to parse request body as JSON. Please check your data and try again.",
 		})
 	}
 
@@ -98,8 +112,9 @@ func CategoryCreate(c *fiber.Ctx) error {
 		categories[i] = category
 	}
 
-	i, err := db.InsertMany("categories", categories)
+	pk, err := db.InsertMany("categories", categories)
 	if err != nil {
+		log.Errorf("Category Create Handler: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,
 			"message": "Failed to insert categories",
@@ -108,7 +123,7 @@ func CategoryCreate(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": 200,
-		"result": i,
+		"result": pk,
 	})
 
 }
@@ -123,6 +138,7 @@ func CategoryUpdate(c *fiber.Ctx) error {
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
+		log.Errorf("Category Update Handler: %v", err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  400,
 			"message": "Failed to parse id.",
@@ -130,14 +146,16 @@ func CategoryUpdate(c *fiber.Ctx) error {
 	}
 	var req types.Category
 	if err := c.BodyParser(&req); err != nil {
+		log.Errorf("Category Update Handler: %v", err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  400,
-			"message": "Failed to parse request body as JSON. Please check your input and try again.",
+			"message": "Failed to parse request body as JSON. Please check your data and try again.",
 		})
 	}
 
 	pk, err := db.UpdateOne("categories", id, req)
 	if err != nil {
+		log.Errorf("Category Update Handler: %v", err)
 		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,
 			"message": err.Error(),
@@ -163,7 +181,7 @@ func CategoryDelete(c *fiber.Ctx) error {
 	if len(id) == 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  400,
-			"message": "id parameter not found",
+			"message": "Id parameter not found",
 		})
 	}
 
@@ -171,6 +189,7 @@ func CategoryDelete(c *fiber.Ctx) error {
 
 	res, err := db.DeleteMany("categories", "id", id)
 	if err != nil {
+		log.Errorf("Category Delete Handler: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,
 			"message": "Failed to delete categories",

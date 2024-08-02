@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -31,6 +30,7 @@ func OrderItem(c *fiber.Ctx) error {
 
 		if err != nil {
 
+			log.Errorf("Order Handler: %v", err)
 			return c.JSON(fiber.Map{
 				"status":  400,
 				"message": "Invalid limit parameter",
@@ -43,6 +43,7 @@ func OrderItem(c *fiber.Ctx) error {
 
 		if err != nil {
 
+			log.Errorf("Order Handler: %v", err)
 			return c.JSON(fiber.Map{
 				"status":  400,
 				"message": "Invalid skip parameter",
@@ -52,11 +53,11 @@ func OrderItem(c *fiber.Ctx) error {
 
 	if id == "" {
 		orders, err := db.GetAllOrders(limit, skip)
-		fmt.Println(err)
 		if err != nil {
+			log.Errorf("Order Handler: %v", err)
 			return c.JSON(fiber.Map{
 				"status":  400,
-				"message": "id doesn't blank",
+				"message": "Failed to get orders",
 			})
 		}
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -67,6 +68,7 @@ func OrderItem(c *fiber.Ctx) error {
 
 	orders, err := db.GetOrders(strings.Split(strings.Trim(id, ","), ","), limit, skip)
 	if err != nil {
+		log.Errorf("Order Handler: %v", err)
 		return c.JSON(fiber.Map{
 			"status":  400,
 			"message": "No data for query",
@@ -89,21 +91,22 @@ func OrderCreate(c *fiber.Ctx) error {
 
 	var req []types.Order
 	if err := c.BodyParser(&req); err != nil {
+		log.Errorf("Order Create Handler: %v", err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  400,
-			"message": err.Error(),
+			"message": "Failed to parse request body as JSON. Please check your data and try again.",
 		})
 	}
 
 	orders := make([]interface{}, len(req))
 	for i, order := range req {
 		order.Created = time.Now()
-		order.Updated = time.Now()
 		orders[i] = order
 	}
 
-	i, err := db.InsertMany("orders", orders)
+	pk, err := db.InsertMany("orders", orders)
 	if err != nil {
+		log.Errorf("Order Create Handler: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,
 			"message": "Failed to insert orders",
@@ -111,8 +114,8 @@ func OrderCreate(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": 200,
-		"result": i,
+		"status": 201,
+		"result": pk,
 	})
 
 }
@@ -127,6 +130,7 @@ func OrderUpdate(c *fiber.Ctx) error {
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
+		log.Errorf("Order Update Handler: %v", err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  400,
 			"message": "Failed to parse id.",
@@ -135,14 +139,16 @@ func OrderUpdate(c *fiber.Ctx) error {
 
 	var req types.Order
 	if err := c.BodyParser(&req); err != nil {
+		log.Errorf("Order Update Handler: %v", err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  400,
 			"message": "Failed to parse request body as JSON. Please check your input and try again.",
 		})
 	}
 
-	pk, err := db.UpdateOne("orders", id, req)
+	_, err = db.UpdateOne("orders", id, req)
 	if err != nil {
+		log.Errorf("Order Update Handler: %v", err)
 		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,
 			"message": err.Error(),
@@ -151,7 +157,7 @@ func OrderUpdate(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": 200,
-		"result": pk,
+		"result": "Orders added successfully!",
 	})
 }
 
@@ -177,6 +183,7 @@ func OrderDelete(c *fiber.Ctx) error {
 	res, err := db.DeleteMany("orders", "id", id)
 
 	if err != nil {
+		log.Errorf("Order Delete  Handler: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,
 			"message": "Failed to delete orders",

@@ -8,9 +8,8 @@ type Product struct {
 	Stock      int       `json:"stock"`
 	Price      float32   `json:"price"`
 	Image      string    `json:"image"`
-	CategoryId int       `json:"category_id"`
+	CategoryId uint      `json:"category_id"`
 	Created    time.Time `json:"created_at"`
-	Updated    time.Time `json:"updated_at"`
 }
 
 type Order struct {
@@ -18,7 +17,6 @@ type Order struct {
 	CustomerId int       `json:"customer_id"`
 	ProductId  int       `json:"product_id"`
 	Created    time.Time `json:"created_at"`
-	Updated    time.Time `json:"updated_at"`
 }
 
 type Customer struct {
@@ -26,7 +24,6 @@ type Customer struct {
 	FirstName string    `json:"first_name"`
 	LastName  string    `json:"last_name"`
 	Created   time.Time `json:"created_at"`
-	Updated   time.Time `json:"updated_at"`
 }
 
 type Address struct {
@@ -39,7 +36,30 @@ type Address struct {
 }
 
 type Category struct {
-	Id        int    `json:"id"`
-	Name      string `json:"name"`
-	ProductId int    `json:"product_id"`
+	Id   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+type User struct {
+	Id       string `json:"id"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Role     string `json:"role"`
+}
+
+type CustomerAddress struct {
+	Id        int       `json:"id"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+	Address   Address   `json:"address"`
+	Created   time.Time `json:"created_at"`
+}
+
+type OrderProdCust struct {
+	ID       int       `json:"id"`
+	Product  Product   `json:"product"`
+	Category Category  `json:"category"`
+	Customer Customer  `json:"customer"`
+	Address  Address   `json:"address"`
+	Created  time.Time `json:"created_at"`
 }

@@ -30,7 +30,7 @@ func ProductItem(c *fiber.Ctx) error {
 		limit, err = strconv.ParseUint(limitStr, 10, 64)
 
 		if err != nil {
-
+			log.Errorf("Product Handler: %v", err)
 			return c.JSON(fiber.Map{
 				"status":  400,
 				"message": "Invalid limit parameter",
@@ -42,6 +42,7 @@ func ProductItem(c *fiber.Ctx) error {
 		skip, err = strconv.ParseUint(skipStr, 10, 64)
 
 		if err != nil {
+			log.Errorf("Product Handler: %v", err)
 			return c.JSON(fiber.Map{
 				"status":  400,
 				"message": "Invalid skip parameter",
@@ -52,19 +53,21 @@ func ProductItem(c *fiber.Ctx) error {
 	if id == "" {
 		products, err := db.GetAllProduct(limit, skip)
 		if err != nil {
+			log.Errorf("Product Handler: %v", err)
 			return c.JSON(fiber.Map{
 				"status":  400,
 				"message": "Failed to retireve products",
 			})
 		}
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"status": 200,
-			"result": products,
+			"status":  200,
+			"results": products,
 		})
 	}
 
 	products, err := db.GetProduct(strings.Split(strings.Trim(id, ","), ","), limit, skip)
 	if err != nil {
+		log.Errorf("Product Handler: %v", err)
 		return c.JSON(fiber.Map{
 			"status":  400,
 			"message": "No data for query",
@@ -72,8 +75,8 @@ func ProductItem(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": 200,
-		"result": products,
+		"status":  200,
+		"results": products,
 	})
 }
 
@@ -87,22 +90,22 @@ func ProductCreate(c *fiber.Ctx) error {
 
 	var req []types.Product
 	if err := c.BodyParser(&req); err != nil {
+		log.Errorf("Product Create Handler: %v", err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  400,
-			"message": err.Error(),
+			"message": "Failed to parse request body as JSON. Please check your data and try again.",
 		})
 	}
 
 	products := make([]interface{}, len(req))
 	for i, product := range req {
 		product.Created = time.Now()
-		product.Updated = time.Now()
 		products[i] = product
 	}
 
-	pk, err := db.InsertMany("products", products)
+	_, err := db.InsertMany("products", products)
 	if err != nil {
-		fmt.Println(err)
+		log.Errorf("Product Create Handler: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,
 			"message": "Failed to insert products",
@@ -110,8 +113,8 @@ func ProductCreate(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": 200,
-		"result": pk,
+		"status": 201,
+		"result": "Products added successfully!",
 	})
 
 }
@@ -127,6 +130,7 @@ func ProductUpdate(c *fiber.Ctx) error {
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
+		log.Errorf("Product Update Handler: %v", err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  400,
 			"message": "Failed to parse id.",
@@ -135,15 +139,17 @@ func ProductUpdate(c *fiber.Ctx) error {
 
 	var req types.Product
 	if err := c.BodyParser(&req); err != nil {
+		log.Errorf("Product Update Handler: %v", err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  400,
-			"message": err.Error(),
+			"message": "Failed to parse request body as JSON. Please check your data and try again.",
 		})
 	}
 
 	pk, err := db.UpdateOne("products", id, req)
 
 	if err != nil {
+		log.Errorf("Product Update Handler: %v", err)
 		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,
 			"message": "Failed to parse request body as JSON. Please check your input and try again.",
@@ -152,7 +158,7 @@ func ProductUpdate(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": 200,
-		"result": pk,
+		"result": fmt.Sprintf("ID=%d is successfully updated!", pk),
 	})
 }
 
@@ -174,18 +180,17 @@ func ProductDelete(c *fiber.Ctx) error {
 		})
 	}
 
-	res, err := db.DeleteMany("products", "id", id)
+	pk, err := db.DeleteMany("products", "id", id)
 	if err != nil {
-		fmt.Println(err)
+		log.Errorf("Product Delete Handler: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,
 			"message": "Failed to delete products",
 		})
 	}
 	log.Infof("Delete item from product %s", id)
-
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": 200,
-		"result": res,
+		"result": pk,
 	})
 }

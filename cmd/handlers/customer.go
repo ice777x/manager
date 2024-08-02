@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -29,7 +30,7 @@ func CustomerItem(c *fiber.Ctx) error {
 		limit, err = strconv.ParseUint(limitStr, 10, 64)
 
 		if err != nil {
-
+			log.Errorf("Category Delete Handler: %v", err)
 			return c.JSON(fiber.Map{
 				"status":  400,
 				"message": "Invalid limit parameter",
@@ -42,6 +43,7 @@ func CustomerItem(c *fiber.Ctx) error {
 
 		if err != nil {
 
+			log.Errorf("Customer Handler: %v", err)
 			return c.JSON(fiber.Map{
 				"status":  400,
 				"message": "Invalid skip parameter",
@@ -52,6 +54,7 @@ func CustomerItem(c *fiber.Ctx) error {
 	if id == "" {
 		customers, err := db.GetAllCustomers(limit, skip)
 		if err != nil {
+			log.Errorf("Customer Handler: %v", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"status":  500,
 				"message": "Failed to retrieve customers",
@@ -62,8 +65,9 @@ func CustomerItem(c *fiber.Ctx) error {
 			"result": customers,
 		})
 	}
-	customers, err := db.GetCustomers(strings.Split(strings.Trim(id, ","), ","), limit, skip)
+	customers, err := db.GetCustomers(strings.Split(strings.Trim(id, ","), ","))
 	if err != nil {
+		log.Errorf("Customer Handler: %v", err)
 		return c.JSON(fiber.Map{
 			"status":  400,
 			"message": "No data for query",
@@ -85,21 +89,22 @@ func CustomerCreate(c *fiber.Ctx) error {
 
 	var req []types.Customer
 	if err := c.BodyParser(&req); err != nil {
+		log.Errorf("Customer Create Handler: %v", err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  400,
-			"message": err.Error(),
+			"message": "Failed to parse request body as JSON. Please check your data and try again.",
 		})
 	}
 
 	customers := make([]interface{}, len(req))
 	for i, customer := range req {
 		customer.Created = time.Now()
-		customer.Updated = time.Now()
 		customers[i] = customer
 	}
 
 	i, err := db.InsertMany("customers", customers)
 	if err != nil {
+		log.Errorf("Customer Create Handler: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,
 			"message": "Failed to insert customers",
@@ -123,6 +128,7 @@ func CustomerUpdate(c *fiber.Ctx) error {
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
+		log.Errorf("Customer Update Handler: %v", err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  400,
 			"message": "Failed to parse id.",
@@ -131,16 +137,18 @@ func CustomerUpdate(c *fiber.Ctx) error {
 
 	var req types.Customer
 	if err := c.BodyParser(&req); err != nil {
+		log.Errorf("Customer Update Handler: %v", err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  400,
-			"message": err.Error(),
+			"message": "Failed to parse request body as JSON. Please check your data and try again.",
 		})
 	}
 	pk, err := db.UpdateOne("customers", id, req)
 	if err != nil {
+		log.Errorf("Customer Update Handler: %v", err)
 		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,
-			"message": "Failed to parse request body as JSON. Please check your input and try again.",
+			"message": "Failed to update customer.",
 		})
 	}
 
@@ -158,17 +166,18 @@ func CustomerDelete(c *fiber.Ctx) error {
 		log.Fatal("Problem in database connection!")
 	}
 
-	idStr := c.Params("id")
+	idStr := c.Query("id")
 	id := strings.Split(strings.Trim(idStr, ","), ",")
-	if len(id) == 0 {
+	if idStr == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  400,
 			"message": "id parameter not found",
 		})
 	}
-
+	fmt.Println(id)
 	res, err := db.DeleteMany("customers", "id", id)
 	if err != nil {
+		log.Errorf("Customer Delete Handler: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status":  500,
 			"message": "Failed to delete customers",
